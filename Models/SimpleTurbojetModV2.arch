@@ -1,0 +1,357 @@
+//-----------------------------------------------------------------------------
+//  This model is a simple turbojet created to allow the user to understand 
+//  what is happening. 
+//  The rationale is that the basic burner model provided with the 
+//  installation is too simple, while the 
+//  Turbofan examples are too complex to start with.
+//-----------------------------------------------------------------------------
+
+AUTHOR = "Prashanth";
+MODELNAME = "SimpleTurbojetModV2";
+
+//-------------------------------------------------
+// Set thermodynamic package
+//-------------------------------------------------
+
+// Make GasTbl the default thermo package so that model will build independent of run file.
+// "$THERMO" can be defined in the run file, and if it is, it will not be redefined here
+// in the model file.
+#ifndef THERMO
+	#define THERMO GasTbl
+#endif
+if ("$THERMO" == "CEA") {
+	setThermoPackage( "CEA", "thermo.smaller", "trans.inp", "Air", "H2O", "H2");
+}
+else {
+	setThermoPackage("$THERMO");
+}
+// ------------------------------
+//      Option Variables
+// ------------------------------
+
+Option switchDes {
+	description = "Determines if the model is in design or off-design mode";
+	IOstatus = "input";
+	rewritableValues = FALSE;
+	trigger = FALSE;
+	allowedValues = {"DESIGN","OFFDESIGN"};
+}
+// //
+Assembly Assembly Eng
+{
+    string schematic = 
+    "
+    +------------+
+    | InletStart |
+    +--^---------+             2        3  FusEng  4         5
+    | 0       |    +-------+  +-----+  +-------+   +-----+  +------+
+    +--+--+    1 +--->| Inlet +->|CmpH +->|BrnPri +-->|TrbH +->|NozPri|
+    | Amb |           +-------+  +-+---+  +-------+   +--+--+  +--+---+
+    +-----+                        |                     |        |  9
+                +-----+   Eff      +---------ShH---------+     +--v---+
+                |Perf +-->SFC                                  |FePri |
+                +-----+   Fn,Fg                                +------+                       
+    ";
+    
+	// 1. Assembly level elements for solution control, interfacing, and power setting
+	Option switchDes {
+		description = "Determines if the engine assembly is in design or off-design mode";
+		IOstatus = "input";
+		rewritableValues = FALSE;
+		trigger = TRUE;
+		allowedValues = {"DESIGN","OFFDESIGN"};
+	}
+    // ------------------------------------------------
+    // Engine Definition
+    // ------------------------------------------------
+    // Eng Assembly contains the following major groups of elements
+
+    // 1. Free Stream definition - establish ambient conditions
+    // ------------------------------
+    //      Ambient Amb
+    // ------------------------------
+    Element Ambient Amb {
+        switchMode = "ALDTMN"; //Specifies what are the inputs for the flight conditions. In this case it is Alt and MN
+        switchHum  = "FAR25";
+    }
+
+    // ------------------------------
+    //      InletStart InletStart
+    // ------------------------------
+    Element InletStart InletStart{
+        AmbientName = "Amb";     //Tells InletStart what the Ambient element is called
+    }
+
+    // 2. Components
+    // ------------------------------
+    //      Inlet InEng
+    // ------------------------------
+    Element Inlet Inlet {
+    }
+
+
+    // ------------------------------
+    //      Compressor CmpH
+    // ------------------------------
+    Element Compressor CmpH {
+        #include "HPCAnsysJun26.map";
+
+    }
+
+    // ------------------------------
+    //      FuelStart FusEng
+    // ------------------------------
+    Element FuelStart FusEng {
+        LHV_in = 19948.4272; //1MJ/kg = 429.923 BTU/lbm && propane is 46.4 mj/kg at 
+        Tref = 491.67; //0 deg C
+        // Note: The following lines are not required in the examples in this folder since
+        // thermoSetup.inp does this in the examples used in NPSSToolbox. However, I'm retaining these 
+        // commented out lines so that you can see where to directly include this in a model you are running
+        // 2022-03-02 10:54:45
+        
+        // if (THERMPACKAGE == "GasTbl" ) {
+        //     setOption("switchGasTblOpt", "GASEQL2");
+        //     LHV = 18638; // (BTU/lbm) LHV of JetA(g) from CEA at Tref = 25 degC
+        // }
+        // if (THERMPACKAGE == "CEA" ) {
+        // // CEA only accepts fuelType and hFuel (heat of formation). hFuel can be calculated from the
+        // // molar heat of formation data already in the CEA thermo.inp file, and must be converted to
+        // // the correct units
+        // // Calculation (at T=298.15 degK per CEA thermo.inp):
+        //     // hFuel = hf_Fuel/MW*ConvFromJkgToBtuLbm
+        //     //     For this fuel (Jet-A(g)), Carbon(n) = 12.00 and Hydrogen(m) = 23.00
+        //     //     hf_Fuel = -249,657 J/mol = -1,492,140 J/kg
+        //     //     MW = (12.0*12.011 + 23.0*1.008) = 167.31462 kg/kmol
+        // hFuel = -1492.140*0.429923; // (BTU/lbm)
+        // fuelType = "Jet-A(g)";
+        // }
+        // if(THERMPACKAGE == "allFuel"){
+        //     // LHV = 43.0e6*getUnitsFactor("J/kg","Btu/lbm");
+        //     LHV = 18638; // (BTU/lbm) LHV of JetA(g) from CEA at Tref = 25 degC
+        // }
+        // if (THERMPACKAGE == "Janaf" ) {
+        // // Janaf only accepts LHV and composition as inputs. The LHV applied here matches the JetA(g)
+        // // heat of formation based on the thermo.inp file for CEA
+        // // Calculation (at T=298.15 degK per CEA thermo.inp):
+        // //     LHV = (n*hf_CO2 + m/2*hf_H2O - hf_Fuel)/MW*ConvFromJkgToBtuLbm
+        // //     For this fuel (Jet-A(g)), Carbon(n) = 12.00 and Hydrogen(m) = 23.00
+        // //     hf_CO2  = -393,510 J/mol
+        // //     hf_H2O  = -241,826 J/mol (vapor)
+        // //     hf_Fuel = -249,657 J/mol = -1,492,140 J/kg
+        // //     MW = (12.0*12.011 + 23.0*1.008) = 167.31462 kg/kmol
+        // //     ConvFromJkgToBtuLbm = 0.9478171*0.4535924 = 0.429923 (BTU/lbm)/(kJ/kg)
+        // //
+        // //     LHV = abs{[(12.0)*(-393510) + (23.0/2.0)*(-241826) - (-249657)]/(167.31462)*(0.429923)}
+        // //         = abs[(-7253462.0)/(167.31462)*(0.429923)] = 18638 BTU/lbm
+
+        // Tref = 298.15*9/5;
+        // Tfuel = 298.15*9/5;
+        // Pfuel = 1*getUnitsFactor("atm", "psia");
+        // hRef = -1492.140*0.429923;
+        // hFuel = -1492.140*0.429923;
+        // LHV = 18638; // (BTU/lbm) LHV of JetA(g) from CEA at Tref = 25 degC
+        // Carbon   = 12.0*12.011/167.31462; 
+        // Hydrogen = 23.0*1.008/167.31462; 
+        // // End Janaf
+        // }
+    }
+
+    // ------------------------------
+    //      Burner BrnPri
+    // ------------------------------
+    Element Burner BrnPri {
+
+        setOption("switchBurn", "WFUEL");
+        // if(THERMPACKAGE == "allFuel"){
+        //     // Fl_I.switchFuelType = "JP"; 
+        //     // this is a flow station attribute and needs to be set 
+        // }
+
+    }
+    //-----------------------------
+    //      Turbine TrbH
+    // ------------------------------
+    Element Turbine TrbH {
+        #include "hptCFM56.map";
+    }
+
+
+    // ------------------------------
+    //      Nozzle NozPri
+    // ------------------------------
+    Element Nozzle NozPri {
+        PsExhName = "Amb.Ps";
+        switchType = "CONIC";
+        if (THERMPACKAGE == "CEA" ) {
+            switchFrozen = "EQUIL";
+        }
+    }
+
+    // ------------------------------
+    //      FlowEnds
+    // ------------------------------
+    Element FlowEnd FePri {
+    }
+
+    // 5. Shaft definition - HP shaft
+    // ------------------------------
+    //      Shaft ShH
+    // ------------------------------
+    Element Shaft ShH {
+        ShaftInputPort MeCmpH, MeTrbH;
+    }
+
+
+    // 6. Performance calculations
+    // ------------------------------
+    //      EngPerf Perf
+    // ------------------------------
+    Element EngPerf Perf {
+        
+        real IdealAvailablePower, deltaKE, myLHV, Fsp, Qin, delKENoz;
+        real effThermal, effThermalKE, effPropulsive, effOverall, effTherNoz;
+        real radHubImp, radHubBurn, radHubTurb, rad2Tip, rad3Tip, rad4Tip, rad5Tip, radNoz; //Set these using cm as unit
+        FlowStation FS_HPTexit, FS_HPCinlet, FS3, FS4;
+
+        // define a radius calcualting function //
+        real radOutCal(real area, real radIn)
+        {
+            real pi = 3.14159265359;
+            real In2ToCm2 = 6.4516;
+            return ((area*In2ToCm2+pi*(radIn**2))/pi)**0.5;
+        }
+
+        void postexecute(){
+            //Treat the core as the heat engine
+            real C_J_kg_q_BTU_lbm = getUnitsFactor("Btu/lbm", "J/kg");
+            real C_kg_lbm = getUnitsFactor("lbm", "kg");
+            real C_m_ft = getUnitsFactor("ft", "m"); // from ft to meter
+
+            FS_HPCinlet.copyFlow("CmpH.Fl_I");
+            FS_HPCinlet.setStaticPs(Amb.Ps);
+
+            FS_HPTexit.copyFlow("TrbH.Fl_O");
+            FS_HPTexit.setStaticPs(Amb.Ps);
+
+            FS3.copyFlow("BrnPri.Fl_I");
+
+            FS4.copyFlow("BrnPri.Fl_O");
+
+            if (THERMPACKAGE == "Janaf" || THERMPACKAGE == "CEA" ) {
+                FS4.setTotalTP(FS3.Tt, FS4.Pt);
+            }
+ 
+            //Energy input via fuel
+            // Qin = abs(BrnPri.Fl_O.W*BrnPri.Fl_O.ht -  BrnPri.Fl_I.W*BrnPri.Fl_I.ht)
+                // *C_kg_lbm*C_J_kg_q_BTU_lbm;
+            Qin = abs(FS4.ht*FS4.W -  FS3.ht*FS3.W)
+                *C_kg_lbm*C_J_kg_q_BTU_lbm;
+                //[J/sec]
+
+            myLHV = Qin/(BrnPri.Wfuel*C_kg_lbm);
+                  //Lower heating value of fuel in [J/kg]
+
+            //------------------------------------------------------------------------------------------
+            //   Ideal thermal efficiency
+            //------------------------------------------------------------------------------------------
+            // The Ideal thermal efficiency of this cycle is defined as the ideal amount
+            // of work that can be extracted from the flow after the work for the compressors 
+            // has been satisfied:
+            // Ideal_power_available = (Total enthalpy after satisifying compressor requirements) 
+            // -  (Static enthalpy after expanding gas to ambient pressure in an isentropic process)
+            // \eta_{Thermal, ideal}  = Ideal_power_available/(fuel power)
+            //------------------------------------------------------------------------------------------
+            IdealAvailablePower = FS_HPTexit.W*C_kg_lbm*(FS_HPTexit.ht - FS_HPTexit.hs)*C_J_kg_q_BTU_lbm;
+            // real RealAvailablePower  = FS_HPTexit.W*C_kg_lbm*(FS_HPTexit.ht - NozPri.Fl_O.hs)*C_J_kg_q_BTU_lbm;
+            deltaKE = 0.5*(FS_HPTexit.W*FS_HPTexit.V**2.0 - FS_HPCinlet.W*FS_HPCinlet.V**2.0)*C_kg_lbm*C_m_ft**2.0;
+            
+            effThermal = IdealAvailablePower/Qin;
+            effThermalKE = deltaKE/Qin;
+
+            Fsp = IdealAvailablePower/(CmpH.Fl_I.W *C_kg_lbm);
+
+            // recompute thermal efficiency based on nozzle exit flow velocity (Consistent with effThermal above (Tested)) //
+            delKENoz = 0.5*NozPri.Fl_O.W*C_kg_lbm*(NozPri.Fl_O.V*C_m_ft)**2.0; //[J/sec]
+            effTherNoz = delKENoz*100/Qin; //[%]
+
+            // Compute the radius at each section    
+            rad2Tip  = radOutCal(CmpH.Fl_I.Aphy, radHubImp);
+            rad3Tip  = radOutCal(BrnPri.Fl_I.Aphy, radHubBurn);
+            rad4Tip  = radOutCal(TrbH.Fl_I.Aphy, radHubTurb);
+            rad5Tip  = radOutCal(NozPri.Fl_I.Aphy, radHubTurb);
+            radNoz   = radOutCal(NozPri.Fl_O.Aphy, 0);
+            
+        }
+    }
+
+
+    // 7. Component linkages
+    // -------------------------------
+    // Component Links
+    // -------------------------------
+    linkPorts( "InletStart.Fl_O", "Inlet.Fl_I" , "F010"  );
+    linkPorts( "Inlet.Fl_O"     , "CmpH.Fl_I"  , "F020" );
+    linkPorts( "CmpH.Fl_O"      , "BrnPri.Fl_I", "F030"  );
+    linkPorts( "FusEng.Fu_O"    , "BrnPri.Fu_I", "FU036" );
+    linkPorts( "BrnPri.Fl_O"    , "TrbH.Fl_I"  , "F040" );
+    linkPorts( "TrbH.Fl_O"      , "NozPri.Fl_I", "F050"   );
+    linkPorts( "NozPri.Fl_O"    , "FePri.Fl_I" , "F090"   );
+
+    // -------------------------------
+    //      Shaft Connect Statements
+    // -------------------------------
+    linkPorts( "CmpH.Sh_O", "ShH.MeCmpH", "MeCmpH" );
+    linkPorts( "TrbH.Sh_O", "ShH.MeTrbH", "MeTrbH" );
+	void variableChanged(string name, any oldval)
+	{
+    }
+
+    void setDefaults(){
+        description = "Sets default values for engine parameters";
+
+        // cerr<<"Setting default engine attributes found in setDefaults";cerr<<endl;
+        Eng.Amb.alt_in      = 0.0;
+        Eng.Amb.MN_in       = 0.0;
+        Eng.InletStart.W_in = 0.29 "kg/sec";      //Varied
+        Eng.Inlet.PqP_in    = 0.98;
+        Eng.CmpH.PRdes      = 3.545;
+        Eng.CmpH.effDes     = 0.882;            //Varied
+        Eng.FusEng.Wfuel    = 1E-02 "kg/sec" ; //Varied
+        Eng.BrnPri.dPqP_dmd = 0.04;            //Combustor pressure loss (Take into account turbine inlet loss)
+        Eng.BrnPri.effBase  = 0.99;            //Combustion efficiency
+        Eng.TrbH.PRbase     = 2.5;
+        Eng.TrbH.effDes     = 0.89;            //Varied
+        Eng.ShH.Nmech       = 0.94605;
+
+        //Design Pt Mach numbers
+        Eng.CmpH.Fl_I.MNdes   = 0.6;
+        Eng.BrnPri.Fl_I.MNdes = 0.35;
+        Eng.TrbH.Fl_I.MNdes   = 1.0;
+        Eng.NozPri.Fl_I.MNdes = 0.35;
+
+        //Default Radius
+        Eng.Perf.radHubImp = 1.8; //[cm]
+        Eng.Perf.radHubBurn = 1.8; //[cm]
+        Eng.Perf.radHubTurb = 3.0; //[cm]
+
+    }
+
+    void readInputs(string inFile){
+        
+    }
+
+    void std_print(){
+        //Add a standard print function that summarizes the engine
+        string elements[] = list("Element", FALSE);
+        cout<<"Engine model used \""<<MODELNAME<<"\""<<endl<<endl;
+        cout<<strFmt1D("List of elements:","%s, ",elements, elements.entries(),elements.entries()/2)<<endl;
+        cout<<schematic<<endl;
+    }
+}
+
+// 9. Solver settings
+//-------------------------------------------------
+// Solver Settings
+//-------------------------------------------------
+// solver.debugLevel = "ITERATION_DETAILS";
+// solver.diagnosticFile = "solver.diag";

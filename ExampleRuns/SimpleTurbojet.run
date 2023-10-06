@@ -1,0 +1,151 @@
+//-----------------------------------------------------------------------------
+// Example file to run a simple turbojet
+//-----------------------------------------------------------------------------
+#ifndef THERMO
+	#define THERMO GasTbl
+#endif
+
+#include "SimpleTurbojet.arch"
+#include "std_imports.int"
+#include "nasa.view"
+#include "System.fnc"
+//-----------------------------------------------------------------------------
+// Instantiate the model variables
+//-----------------------------------------------------------------------------
+
+Eng.setDefaults();
+Eng.std_print();
+
+// quit();
+// solver.defaultTolerance = 1e-10;
+
+setOption("switchDes", "DESIGN");
+//Add indep and dep vars
+Independent ind_Wfuel{
+    varName = "Eng.FusEng.Wfuel";
+}
+Independent ind_Win{
+    varName = "Eng.InletStart.W_in";
+}
+
+Dependent dep_Fn{
+    eq_lhs = "Eng.Perf.Fn"; eq_rhs = "15167*getUnitsFactor(\"N\", \"lbf\")";
+}
+Dependent dep_T4qT2{
+    eq_lhs = "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt"; eq_rhs = "4.5";
+}
+
+autoSolverSetup();
+solver.addIndependent("ind_Wfuel");
+solver.addDependent("dep_T4qT2");
+
+solver.addIndependent("ind_Win");
+solver.addDependent("dep_Fn");
+CASE = 0;
+run();
+
+OutFileStream outputfile {
+    filename = "Turbojet.out";
+}
+CaseRowViewer RowOutput {
+    outStreamHandle = "outputfile";
+    titleBody = "???????????????????? \t run on: ????????? at: ?????????? by: ??????\t Model Author: ??????????\t Thermo Used: ??????\nALL IN SI UNITS";
+    titleVars = {"MODELNAME", "date", "timeOfDay", "USER", "AUTHOR", "THERMPACKAGE"}
+    caseHeaderBody = "??????";
+    caseHeaderVars = { "CASE" }
+    showHeaders = -1;
+    variableList = {
+	"solver.converged:?? = Conv",
+	"solver.iterationCounter:??? = Iter",
+    "Eng.switchDes = Mode",
+
+    "Eng.Amb.alt            = alt",
+    "Eng.Amb.MN             = M0",
+    "Eng.Amb.Ps             = Pamb",
+    "Eng.Amb.Ts             = Tamb",
+    "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt = Tt4_Tt2",
+
+    "Eng.InletStart.W       = Win",
+    "Eng.BrnPri.Wfuel       = Wfuel",
+    "Eng.Perf.Fg            = Fg",
+    "Eng.Perf.Fn            = Fn",
+    "Eng.Perf.Fram          = Fram",
+    "Eng.Perf.SFC           = SFC",
+
+    "Eng.CmpH.PR            = HPC_PR",
+    "Eng.CmpH.eff           = HPC_eff",
+    "Eng.CmpH.effPoly       = HPC_effpoly",
+    "Eng.TrbH.PR            = HPT_PR",
+    "Eng.TrbH.eff           = HPT_eff",
+    "Eng.TrbH.effPoly       = HPT_effPoly",
+    "Eng.CmpH.Nmech         = N2",
+	
+    // "Eng.Inlet.Fl_I.MN:??.???      = M0",
+    "Eng.Inlet.Fl_I.Pt      = Pt0",
+    "Eng.Inlet.Fl_I.Tt      = Tt0",
+    // "Eng.CmpH.Fl_I.Cpt = cp2",
+    "Eng.CmpH.Fl_I.gamt = gam2",
+    "Eng.CmpH.Fl_I.Rt = R2",
+    
+    "Eng.CmpH.Fl_I.MN:??.???       = M2",
+    "Eng.CmpH.Fl_I.Pt       = Pt2",
+    "Eng.CmpH.Fl_I.Tt       = Tt2",
+    
+    "Eng.BrnPri.Fl_I.MN:??.???     = M3",
+    "Eng.BrnPri.Fl_I.Pt     = Pt3",
+    "Eng.BrnPri.Fl_I.Tt     = Tt3",
+    
+    "Eng.TrbH.Fl_I.MN:??.???       = M4",
+    "Eng.TrbH.Fl_I.Pt       = Pt4",
+    "Eng.TrbH.Fl_I.Tt       = Tt4",
+    
+    "Eng.NozPri.Fl_I.MN:??.???     = M5",
+    "Eng.NozPri.Fl_I.Pt     = Pt5",
+    "Eng.NozPri.Fl_I.Tt     = Tt5",
+
+    "Eng.FePri.Fl_I.MN:??.???      = M9",
+    "Eng.FePri.Fl_I.Pt      = Pt9",
+    "Eng.FePri.Fl_I.Tt      = Tt9",
+    "Eng.FePri.Fl_I.V       = V9",
+    "Eng.NozPri.Fl_O.Aphy   = NozA@m2"
+
+
+    }
+    unitSystem = "SI";
+    defRealFormat = "?.???????E????";
+    defSNFormat   = "?.???????E????";
+    showErrors = FALSE;
+
+}
+RowOutput.update();
+// RowOutput.display();
+// quit();
+setOption("switchDes", "OFFDESIGN");
+
+autoSolverSetup();
+solver.addIndependent("ind_Wfuel");
+solver.addDependent("dep_T4qT2");
+real TR;
+
+for (Eng.Amb.alt_in = 0; Eng.Amb.alt_in<=40000; Eng.Amb.alt_in +=5000){
+
+    for(Eng.Amb.MN_in = 0.2; Eng.Amb.MN_in <= 0.8; Eng.Amb.MN_in +=0.1){
+        if(Eng.Amb.alt_in >= 10000 && Eng.Amb.MN_in <=0.39){continue;}
+        for(TR = 3.0; TR<=6.0; TR+=0.1){
+            dep_T4qT2.eq_rhs = "TR";
+            run();
+            cout<<"#";
+            if(!solver.converged){run();}
+            RowOutput.update();
+            CASE++;
+        }
+        cout<<"\t";
+    }
+    cout<<"\n";
+}
+
+RowOutput.display();
+// printSolverConditions();
+
+cout << endl << Eng.CmpH.Fl_O.totalCompAll()  << endl;
+icl.start();

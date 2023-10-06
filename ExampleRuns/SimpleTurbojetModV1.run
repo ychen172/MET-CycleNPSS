@@ -1,0 +1,217 @@
+//-----------------------------------------------------------------------------
+// Example file to run a simple turbojet
+//-----------------------------------------------------------------------------
+#ifndef THERMO
+	#define THERMO GasTbl
+#endif
+
+#include "SimpleTurbojetModV1.arch"
+#include "std_imports.int"
+#include "nasa.view"
+#include "System.fnc"
+//-----------------------------------------------------------------------------
+// Instantiate the model variables
+//-----------------------------------------------------------------------------
+
+Eng.setDefaults();
+Eng.std_print();
+
+// quit();
+// solver.defaultTolerance = 1e-10;
+
+setOption("switchDes", "DESIGN");
+//Add indep and dep vars
+Independent ind_Wfuel{
+    varName = "Eng.FusEng.Wfuel";
+}
+Independent ind_Win{
+    varName = "Eng.InletStart.W_in";
+}
+Independent ind_effDesCmpH{
+    varName = "Eng.CmpH.effDes";
+}
+Independent ind_effDesTrbH{
+    varName = "Eng.TrbH.effDes";
+}
+
+
+Dependent dep_Fn{
+    eq_lhs = "Eng.Perf.Fn"; eq_rhs = "100*getUnitsFactor(\"N\", \"lbf\")";
+}
+Dependent dep_T4qT2{
+    eq_lhs = "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt"; eq_rhs = "3.3";
+}
+Dependent dep_effPolyCmpH{
+    eq_lhs = "Eng.CmpH.effPoly"; eq_rhs = "0.75";
+}
+Dependent dep_effPolyTrbH{
+    eq_lhs = "Eng.TrbH.effPoly"; eq_rhs = "0.75";
+}
+
+
+autoSolverSetup();
+solver.addIndependent("ind_Wfuel");
+solver.addDependent("dep_T4qT2");
+
+solver.addIndependent("ind_Win");
+solver.addDependent("dep_Fn");
+
+solver.addIndependent("ind_effDesCmpH");
+solver.addDependent("dep_effPolyCmpH");
+
+solver.addIndependent("ind_effDesTrbH");
+solver.addDependent("dep_effPolyTrbH");
+CASE = 0;
+cout << "Case: "<< CASE << endl;
+cout << solver.list("Independent",0) <<endl;
+cout << solver.list("Independent",0) <<endl;
+run();
+
+OutFileStream outputfile {
+    filename = "../output/Turbojet.out";
+}
+CaseRowViewer RowOutput {
+    outStreamHandle = "outputfile";
+    titleBody = "???????????????????? \t run on: ????????? at: ?????????? by: ??????\t Model Author: ??????????\t Thermo Used: ??????\nALL IN SI UNITS";
+    titleVars = {"MODELNAME", "date", "timeOfDay", "USER", "AUTHOR", "THERMPACKAGE"}
+    caseHeaderBody = "??????";
+    caseHeaderVars = { "CASE" }
+    showHeaders = -1;
+
+    variableList = {
+	"solver.converged:?? = Conv",
+	"solver.iterationCounter:??? = Iter",
+    "Eng.switchDes = Mode",
+
+    "Eng.Amb.alt            = alt[m]@m",
+    "Eng.Amb.MN             = M0",
+    "Eng.Amb.Ps             = Pamb[Pa]@Pa",
+    "Eng.Amb.Ts             = Tamb[K]@K",
+    "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt = Tt4_Tt2",
+
+    "Eng.InletStart.W       = Win[kg/s]@kg/sec",
+    "Eng.BrnPri.Wfuel:???.??????? = Wfuel[kg/s]@kg/sec",
+    "Eng.NozPri.Fl_O.W      = Wout[kg/s]@kg/sec",
+    "Eng.Perf.Fg            = Fg[N]@N",
+    "Eng.Perf.Fn            = Fn[N]@N",
+    "Eng.Perf.Fram          = Fram",
+    "Eng.Perf.SFC           = SFC",
+    "Eng.Perf.effTherNoz    = EtaThermal[%]",
+
+    "Eng.CmpH.PR            = HPC_PR",
+    "Eng.CmpH.eff           = HPC_eff",
+    "Eng.CmpH.effPoly       = HPC_effpoly",
+    "Eng.TrbH.PR            = HPT_PR",
+    "Eng.TrbH.eff           = HPT_eff",
+    "Eng.TrbH.effPoly       = HPT_effPoly",
+    "Eng.CmpH.Nmech         = N2",
+	
+    "Eng.Inlet.Fl_I.Aphy    = A0[cm2]@cm2",
+    "Eng.Inlet.Fl_I.MN      = M0",
+    "Eng.Inlet.Fl_I.Pt      = Pt0[Pa]@Pa",
+    "Eng.Inlet.Fl_I.Tt      = Tt0[K]@K",
+    
+    "Eng.CmpH.Fl_I.Aphy     = A2[cm2]@cm2",
+    "Eng.Perf.radHubImp     = rad2Hub[cm]",
+    "Eng.Perf.rad2Tip       = rad2Tip[cm]",
+    "Eng.CmpH.Fl_I.MN       = M2",
+    "Eng.CmpH.Fl_I.Pt       = Pt2[Pa]@Pa",
+    "Eng.CmpH.Fl_I.Tt       = Tt2[K]@K",
+    "Eng.CmpH.Fl_I.Cpt      = cp2",
+    "Eng.CmpH.Fl_I.gamt     = gam2",
+    "Eng.CmpH.Fl_I.Rt       = R2",
+
+    "Eng.BrnPri.Fl_I.Aphy   = A3[cm2]@cm2",
+    "Eng.Perf.radHubBurn    = rad3Hub[cm]",
+    "Eng.Perf.rad3Tip       = rad3Tip[cm]",
+    "Eng.BrnPri.Fl_I.MN     = M3",
+    "Eng.BrnPri.Fl_I.Pt     = Pt3[Pa]@Pa",
+    "Eng.BrnPri.Fl_I.Tt     = Tt3[K]@K",
+    
+    "Eng.TrbH.Fl_I.Aphy     = A4[cm2]@cm2",
+    "Eng.Perf.radHubTurb    = rad4Hub[cm]",
+    "Eng.Perf.rad4Tip       = rad4Tip[cm]",
+    "Eng.TrbH.Fl_I.MN       = M4",
+    "Eng.TrbH.Fl_I.Pt       = Pt4[Pa]@Pa",
+    "Eng.TrbH.Fl_I.Tt       = Tt4[K]@K",
+    
+    "Eng.NozPri.Fl_I.Aphy   = A5[cm2]@cm2",
+    "Eng.Perf.radHubTurb    = rad5Hub[cm]",
+    "Eng.Perf.rad5Tip       = rad5Tip[cm]",
+    "Eng.NozPri.Fl_I.MN     = M5",
+    "Eng.NozPri.Fl_I.Pt     = Pt5[Pa]@Pa",
+    "Eng.NozPri.Fl_I.Tt     = Tt5[K]@K",
+    
+    "Eng.NozPri.Fl_O.Aphy   = NozA[cm2]@cm2",
+    "Eng.Perf.radNoz        = radNoz[cm]",
+    "Eng.NozPri.Fl_O.MN     = NozMN",
+    "Eng.NozPri.Fl_O.Pt     = PtNoz[Pa]@Pa",
+    "Eng.NozPri.Fl_O.Tt     = TtNoz[K]@K",
+    "Eng.NozPri.Fl_O.V      = VNoz[m/s]@m/sec",
+    "Eng.NozPri.Fl_O.Ps     = PsNoz[Pa]@Pa",
+    "Eng.NozPri.Fl_O.Ts     = TsNoz[K]@K",
+
+    "Eng.BrnPri.Fl_I.W:?????.?????   = BurnInW[kg/s]@kg/sec",
+    "Eng.BrnPri.Fl_I.ht:????????.??  = BurnInht[J/kg]@J/kg",
+    "Eng.BrnPri.Fl_O.ht:????????.??  = BurnOuht[J/kg]@J/kg",
+    "Eng.BrnPri.Fl_O.W:?????.?????   = BurnOuW[kg/s]@kg/sec"
+    
+    }
+    unitSystem = "SI";
+    //defRealFormat = "?.???????E????";
+    //defSNFormat   = "?.???????E????";
+    showErrors = FALSE;
+
+}
+RowOutput.update();
+// RowOutput.display();
+
+quit(); //
+// Do a pressure ratio sweep run //
+real ComPR;
+CASE++;
+for(ComPR = 1.1; ComPR<=5.0; ComPR+=0.1)
+{
+    Eng.CmpH.PRdes = ComPR;
+    cout << "Case: "<< CASE << endl;
+    cout << solver.list("Independent",0) <<endl;
+    cout << solver.list("Independent",0) <<endl;
+    run();
+    cout<<"#";
+    if(!solver.converged){run();}
+    RowOutput.update();
+    CASE++;
+}
+
+quit(); // Quit out of the code
+
+
+setOption("switchDes", "OFFDESIGN");
+
+autoSolverSetup();
+solver.addIndependent("ind_Wfuel");
+solver.addDependent("dep_T4qT2");
+real TR;
+
+for (Eng.Amb.alt_in = 0; Eng.Amb.alt_in<=40000; Eng.Amb.alt_in +=5000){
+
+    for(Eng.Amb.MN_in = 0.2; Eng.Amb.MN_in <= 0.8; Eng.Amb.MN_in +=0.1){
+        if(Eng.Amb.alt_in >= 10000 && Eng.Amb.MN_in <=0.39){continue;}
+        for(TR = 3.0; TR<=6.0; TR+=0.1){
+            dep_T4qT2.eq_rhs = "TR";
+            run();
+            cout<<"#";
+            if(!solver.converged){run();}
+            RowOutput.update();
+            CASE++;
+        }
+        cout<<"\t";
+    }
+    cout<<"\n";
+}
+
+RowOutput.display();
+// printSolverConditions();
+
+cout << endl << Eng.CmpH.Fl_O.totalCompAll()  << endl;
+//icl.start();
