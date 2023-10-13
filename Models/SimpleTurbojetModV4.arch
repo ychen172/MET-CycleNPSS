@@ -1,0 +1,132 @@
+// Simple Turbojet 
+AUTHOR = "Prashanth";
+MODELNAME = "SimpleTurbojetModV4";
+
+// Set Thermodynamic Package
+#ifndef THERMO
+	#define THERMO GasTbl
+#endif
+if ("$THERMO" == "CEA") {setThermoPackage( "CEA", "thermo.smaller", "trans.inp", "Air", "H2O", "H2");}
+else {setThermoPackage("$THERMO");}
+
+// Option Variables
+Option switchDes {
+	description = "Determines if the model is in design or off-design mode";
+	IOstatus = "input";
+	rewritableValues = FALSE;
+	trigger = FALSE;
+	allowedValues = {"DESIGN","OFFDESIGN"};
+}
+
+// Engine Assembly
+Assembly Assembly Eng
+{
+    // Basic Schematic
+    string schematic = 
+    "
+    0 -> InletStart -> 1 -> Inlet -> 2 -> CmpH -> 3 -> BurnPri -> 4 -> TrbH ->5 -> NozPri ->6 FlowEnd
+                                                  Shaft ------- Shaft
+                                                         fuel               
+    ";
+    
+    // Air Reservoir
+    Element Ambient Amb {
+        switchMode = "ALDTMN";
+        alt_in     = 0.0;
+        dTs_in     = 0.0;
+        MN_in      = 0.0;
+    }
+
+    // Free Stream Definition
+    Element InletStart InletStart{
+        AmbientName = "Amb";
+        W_in        = 0.29 "kg/sec";
+    }
+
+    // Inlet
+    Element Inlet Inlet {
+        PqP_in     = 0.985;
+    }
+
+    // Compressor
+    Element Compressor CmpH {
+        #include "HPCAnsysJun26.map";
+        PRdes       = 1.7;
+        effDes      = 0.70;
+        Fl_I.MNdes  = 0.45;
+    }
+
+    // Fuel Injector
+    Element FuelStart FusEng {
+        LHV_in = 21564 "Btu/lbm"; //1MJ/kg = 429.923 BTU/lbm
+        Wfuel  = 1E-02 "kg/sec";
+    }
+
+    // Combustor
+    Element Burner BrnPri {
+        setOption("switchBurn", "WFUEL");
+        dPqP_dmd   = 0.04;
+        effBase    = 0.98;
+        Fl_I.MNdes = 0.2;
+    }
+
+    // Turbine
+    Element Turbine TrbH {
+        #include "hptCFM56.map";
+        PRbase      = 2.5;
+        effDes      = 0.65;
+        Fl_I.MNdes  = 0.4;
+    }
+
+    // Nozzle
+    Element Nozzle NozPri {
+        PsExhName  = "Amb.Ps";
+        switchType = "CONIC";
+        Fl_I.MNdes = 0.4;
+        dPqP       = 0.02;
+        if (THERMPACKAGE == "CEA" ) {
+            switchFrozen = "EQUIL";
+        }
+    }
+
+    // Exhaust
+    Element FlowEnd FePri {
+    }
+
+    // Shaft
+    Element Shaft ShH {
+        ShaftInputPort MeCmpH, MeTrbH;
+        Nmech = 60000;
+        HPX   = 1 "hp";
+    }
+
+    // Performance Evalution
+    Element EngPerf Perf {
+        real Qin,dKE,etaTherm;
+        void postexecute(){
+            Qin = FusEng.LHV_in*FusEng.Wfuel*1055.06; //[J/sec or watt]
+            dKE = (0.5*NozPri.Fl_O.W*NozPri.Fl_O.V**2.0 - 0.5*Inlet.Fl_I.W*Inlet.Fl_I.V**2)*0.04214; //[J/sec or watt]
+            etaTherm = dKE/Qin; //0 to 1
+        }
+    }
+
+    // Linkages
+    linkPorts( "InletStart.Fl_O", "Inlet.Fl_I" , "F1" );
+    linkPorts( "Inlet.Fl_O"     , "CmpH.Fl_I"  , "F2" );
+    linkPorts( "CmpH.Fl_O"      , "BrnPri.Fl_I", "F3a");
+    linkPorts( "FusEng.Fu_O"    , "BrnPri.Fu_I", "F3f");
+    linkPorts( "BrnPri.Fl_O"    , "TrbH.Fl_I"  , "F4" );
+    linkPorts( "TrbH.Fl_O"      , "NozPri.Fl_I", "F5" );
+    linkPorts( "NozPri.Fl_O"    , "FePri.Fl_I" , "F6" );
+    linkPorts( "CmpH.Sh_O"      , "ShH.MeCmpH" , "F3s" );
+    linkPorts( "TrbH.Sh_O"      , "ShH.MeTrbH" , "F4s" );
+
+    // Print out current engine setup
+    void std_print(){
+        string elements[] = list("Element", FALSE);
+        cout<<"Engine model used \""<<MODELNAME<<"\""<<endl<<endl;
+        cout<<strFmt1D("List of elements:","%s, ",elements, elements.entries(),elements.entries()/2)<<endl;
+        cout<<schematic<<endl;
+    }
+}
+
