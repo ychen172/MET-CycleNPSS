@@ -1,6 +1,6 @@
 // Simple Turbojet 
 AUTHOR = "Prashanth";
-MODELNAME = "SimpleTurbojetModV4";
+MODELNAME = "SimpleTurbojet";
 
 // Set Thermodynamic Package
 #ifndef THERMO

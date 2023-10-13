@@ -3,7 +3,7 @@
 #ifndef THERMO
 	#define THERMO GasTbl
 #endif
-#include "SimpleTurbojetModV4.arch"
+#include "SimpleTurbojet.arch"
 
 // Switch to design mode
 Eng.std_print();
