@@ -9,6 +9,11 @@ MODELNAME = "SimpleTurbojet";
 if ("$THERMO" == "CEA") {setThermoPackage( "CEA", "thermo.smaller", "trans.inp", "Air", "H2O", "H2");}
 else {setThermoPackage("$THERMO");}
 
+// Input information
+InFileStream input_data {
+    filename = "../arch.dat";
+}
+
 // Option Variables
 Option switchDes {
 	description = "Determines if the model is in design or off-design mode";
@@ -32,58 +37,58 @@ Assembly Assembly Eng
     // Air Reservoir
     Element Ambient Amb {
         switchMode = "ALDTMN";
-        alt_in     = 0.0;
-        dTs_in     = 0.0;
-        MN_in      = 0.0;
+        alt_in     = input_data.getReal();
+        dTs_in     = input_data.getReal();
+        MN_in      = input_data.getReal();
     }
 
     // Free Stream Definition
     Element InletStart InletStart{
         AmbientName = "Amb";
-        W_in        = 0.29 "kg/sec";
+        W_in        = input_data.getReal() "kg/sec";
     }
 
     // Inlet
     Element Inlet Inlet {
-        PqP_in     = 0.985;
+        PqP_in     = input_data.getReal();
     }
 
     // Compressor
     Element Compressor CmpH {
         #include "HPCAnsysJun26.map";
-        PRdes       = 1.7;
-        effDes      = 0.70;
-        Fl_I.MNdes  = 0.45;
+        PRdes       = input_data.getReal();
+        effDes      = input_data.getReal();
+        Fl_I.MNdes  = input_data.getReal();
     }
 
     // Fuel Injector
     Element FuelStart FusEng {
-        LHV_in = 21564 "Btu/lbm"; //1MJ/kg = 429.923 BTU/lbm
-        Wfuel  = 1E-02 "kg/sec";
+        LHV_in = input_data.getReal() "Btu/lbm"; //1MJ/kg = 429.923 BTU/lbm
+        Wfuel  = input_data.getReal() "kg/sec";
     }
 
     // Combustor
     Element Burner BrnPri {
         setOption("switchBurn", "WFUEL");
-        dPqP_dmd   = 0.04;
-        effBase    = 0.98;
-        Fl_I.MNdes = 0.2;
+        dPqP_dmd   = input_data.getReal();
+        effBase    = input_data.getReal();
+        Fl_I.MNdes = input_data.getReal();
     }
 
     // Turbine
     Element Turbine TrbH {
         #include "hptCFM56.map";
-        PRbase      = 2.5;
-        effDes      = 0.65;
-        Fl_I.MNdes  = 0.4;
+        PRbase      = input_data.getReal();
+        effDes      = input_data.getReal();
+        Fl_I.MNdes  = input_data.getReal();
     }
 
     // Nozzle
     Element Nozzle NozPri {
         PsExhName  = "Amb.Ps";
         switchType = "CONIC";
-        Fl_I.MNdes = 0.4;
-        dPqP       = 0.02;
+        Fl_I.MNdes = input_data.getReal();
+        dPqP       = input_data.getReal();
         if (THERMPACKAGE == "CEA" ) {
             switchFrozen = "EQUIL";
         }
@@ -96,8 +101,8 @@ Assembly Assembly Eng
     // Shaft
     Element Shaft ShH {
         ShaftInputPort MeCmpH, MeTrbH;
-        Nmech = 60000;
-        HPX   = 1 "hp";
+        Nmech = input_data.getReal();
+        HPX   = input_data.getReal() "hp";
     }
 
     // Performance Evalution
@@ -130,3 +135,4 @@ Assembly Assembly Eng
     }
 }
 
+input_data.close();
