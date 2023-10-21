@@ -1,1 +1,4 @@
-@SET NPSS_PATH=%CD%\ExampleRuns;%CD%\maps;%CD%\Models;%CD%\output;%CD%\utils;
+@call setupnpss.bat
+@pushd ExampleRuns
+runnpss SimpleTurbojet.run
+@popd

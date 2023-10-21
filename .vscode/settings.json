@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.run": "cpp",
+        "*.map": "cpp",
+        "*.arch": "cpp"
+    }
+}
