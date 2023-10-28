@@ -10,7 +10,6 @@
     W_in: 0.29
     PqP_in: 0.985
 - compressor:
-    # currently nonfunctional
     map: HPCAnsysJun26.map
     PRdes: 1.7
     effDes: 0.70
@@ -25,7 +24,6 @@
     FL_I:
       MNdes: 0.2
 - turbine:
-    # currently nonfunctional
     map: hptCFM56.map
     PRbase: 2.5
     effDes: 0.65
@@ -37,4 +35,4 @@
       MNdes: 0.2
 - shaft:
     Nmech: 60000
-    HPX: 0.1
+    HPX: 1

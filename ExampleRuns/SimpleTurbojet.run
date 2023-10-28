@@ -5,9 +5,7 @@
 #endif
 #include "SimpleTurbojet.arch"
 
-InFileStream input_data2 {
-    filename = "../run.dat";
-}
+#include "run.h"
 
 // Switch to design mode
 Eng.std_print();
@@ -15,10 +13,10 @@ setOption("switchDes", "DESIGN");
 autoSolverSetup(); //Automatically setup the Ind/Dep var pairs for design case
 
 // Design Parameters
-real ThrustDes = input_data2.getReal(); //Design thrust [N]
-real TempRatioDes = input_data2.getReal(); //Tt4 over Tt2 ratio
-real ThrustLowLim = input_data2.getReal(); //Lowest thrust [N]
-real ThrustHighLim = input_data2.getReal(); //Maximum thrust [N]
+real ThrustDes = $PARAM_THRUST_DES; //Design thrust [N]
+real TempRatioDes = $PARAM_TEMP_RATIO_DES; //Tt4 over Tt2 ratio
+real ThrustLowLim = $PARAM_THRUST_LOW_LIM; //Lowest thrust [N]
+real ThrustHighLim = $PARAM_THRUST_HIGH_LIM; //Maximum thrust [N]
 
 input_data2.close();
 
