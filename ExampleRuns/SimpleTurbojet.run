@@ -1,151 +1,240 @@
-//-----------------------------------------------------------------------------
-// Example file to run a simple turbojet
-//-----------------------------------------------------------------------------
+// turbojet
+
 #ifndef THERMO
 	#define THERMO GasTbl
 #endif
-
 #include "SimpleTurbojet.arch"
-#include "std_imports.int"
-#include "nasa.view"
-#include "System.fnc"
-//-----------------------------------------------------------------------------
-// Instantiate the model variables
-//-----------------------------------------------------------------------------
 
-Eng.setDefaults();
+#include "run.h"
+
+// Switch to design mode
 Eng.std_print();
-
-// quit();
-// solver.defaultTolerance = 1e-10;
-
 setOption("switchDes", "DESIGN");
-//Add indep and dep vars
+autoSolverSetup(); //Automatically setup the Ind/Dep var pairs for design case
+
+// Design Parameters
+real ThrustDes = $PARAM_THRUST_DES; //Design thrust [N]
+real TempRatioDes = $PARAM_TEMP_RATIO_DES; //Tt4 over Tt2 ratio
+real ThrustLowLim = $PARAM_THRUST_LOW_LIM; //Lowest thrust [N]
+real ThrustHighLim = $PARAM_THRUST_HIGH_LIM; //Maximum thrust [N]
+
+input_data2.close();
+
+// Set additional independent variables
 Independent ind_Wfuel{
     varName = "Eng.FusEng.Wfuel";
 }
 Independent ind_Win{
     varName = "Eng.InletStart.W_in";
 }
+Independent ind_effDesTrbH{
+    varName = "Eng.TrbH.effDes";
+}
+Independent ind_effDesCmpH{
+    varName = "Eng.CmpH.effDes";
+}
 
+// Set additional dependent variables
 Dependent dep_Fn{
-    eq_lhs = "Eng.Perf.Fn"; eq_rhs = "15167*getUnitsFactor(\"N\", \"lbf\")";
+    eq_lhs = "Eng.Perf.Fn"; eq_rhs = "ThrustDes*getUnitsFactor(\"N\", \"lbf\")";
 }
 Dependent dep_T4qT2{
-    eq_lhs = "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt"; eq_rhs = "4.5";
+    eq_lhs = "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt"; eq_rhs = "TempRatioDes";
+}
+Dependent dep_effPolyTrbH{
+    eq_lhs = "Eng.TrbH.effPoly"; eq_rhs = "0.70";
+}
+Dependent dep_effPolyCmpH{
+    eq_lhs = "Eng.CmpH.effPoly"; eq_rhs = "0.70";
 }
 
-autoSolverSetup();
+// Use polytropic efficiencies for compressor/turbine scaling?
+real desEffPolyTrbH = FALSE;
+real desEffPolyCmpH = FALSE;
+
+// Add additional variable pairs to the solver
 solver.addIndependent("ind_Wfuel");
 solver.addDependent("dep_T4qT2");
-
 solver.addIndependent("ind_Win");
 solver.addDependent("dep_Fn");
-CASE = 0;
-run();
+if (desEffPolyTrbH){
+    solver.addIndependent("ind_effDesTrbH");
+    solver.addDependent("dep_effPolyTrbH");
+}
+if (desEffPolyCmpH){
+    solver.addIndependent("ind_effDesCmpH");
+    solver.addDependent("dep_effPolyCmpH");
+}
 
+// Prepare output file
 OutFileStream outputfile {
-    filename = "Turbojet.out";
+    filename = "../output/Turbojet.out";
 }
 CaseRowViewer RowOutput {
     outStreamHandle = "outputfile";
-    titleBody = "???????????????????? \t run on: ????????? at: ?????????? by: ??????\t Model Author: ??????????\t Thermo Used: ??????\nALL IN SI UNITS";
-    titleVars = {"MODELNAME", "date", "timeOfDay", "USER", "AUTHOR", "THERMPACKAGE"}
-    caseHeaderBody = "??????";
-    caseHeaderVars = { "CASE" }
-    showHeaders = -1;
+    titleBody = "Model: ?????????? , Date: ?????????? , Time: ?????????? , Thermal Package: ??????????";
+    titleVars = {"MODELNAME", "date", "timeOfDay", "THERMPACKAGE"}
+    caseHeaderBody = "Case ???";
+    caseHeaderVars = {"CASE"}
+    showHeaders = TRUE; //Keep auto display from adding header
+
     variableList = {
-	"solver.converged:?? = Conv",
+	"solver.converged:???        = Conv",
 	"solver.iterationCounter:??? = Iter",
-    "Eng.switchDes = Mode",
+    "switchDes:????????????      = Mode",
+    
+    "Eng.InletStart.W:??????S???  = Wa_in[kg/sec]@kg/sec",
+    "Eng.BrnPri.Wfuel:??????S???  = Wf_burner[kg/sec]@kg/sec",
+    "Eng.FusEng.Wfuel:??????S???  = Wf_pump[kg/sec]@kg/sec",
+    "Eng.Perf.Wfuel:??????S???    = Wf_measure[kg/sec]@kg/sec",
+    "Eng.NozPri.Fl_O.W:??????S??? = W_out[kg/sec]@kg/sec",
+    
+    "Eng.Perf.Fg:??????S???    = Gross Thrust[N]@N",
+    "Eng.Perf.Fn:??????S???    = Net Thrust[N]@N",
+    "Eng.Perf.Fram:??????S???  = Ram Drag[N]@N",
+    "Eng.Perf.SFC:??????S???   = TSFC[kg/N/sec]@kg/(N*sec)",
+    "Eng.Perf.etaTherm:???S??? = Eta_Thermal",
+    
+    "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt:??????S??? = Tt4/Tt2",
+    "Eng.CmpH.PR:??????S???                         = OPR",
+    
+    "Eng.Amb.alt:??????S???    = alt[m]@m",
+    "Eng.Amb.MN:????S???       = M0",
+    "Eng.Amb.Pt:?????????S???  = Pt0[Pa]@Pa",
+    "Eng.Amb.Tt:???????S???    = Tt0[K]@K",
+    
+    "Eng.Inlet.Fl_I.Aphy:???????S??? = Area1[cm2]@cm2",
+    "Eng.Inlet.Fl_I.W:???????S???    = W1[kg/sec]@kg/sec",
+    "Eng.Inlet.Fl_I.MN:???????S???   = M1",
+    "Eng.Inlet.Fl_I.gamt:???????S??? = gamma1",
+    "Eng.Inlet.Fl_I.Cpt:???????S???  = Cp1[J/K/kg]@J/(kg*K)",
+    "Eng.Inlet.Fl_I.Pt:???????S???   = Pt1[Pa]@Pa",
+    "Eng.Inlet.Fl_I.Tt:???????S???   = Tt1[K]@K",
+    "Eng.Inlet.Fl_I.ht:???????S???   = ht1[J/kg]@J/kg",
+    
+    "Eng.CmpH.Fl_I.Aphy:???????S??? = Area2[cm2]@cm2",
+    "Eng.CmpH.Fl_I.W:???????S???    = W2[kg/sec]@kg/sec",
+    "Eng.CmpH.Fl_I.MN:???????S???   = M2",
+    "Eng.CmpH.Fl_I.gamt:???????S??? = gamma2",
+    "Eng.CmpH.Fl_I.Cpt:???????S???  = Cp2[J/K/kg]@J/(kg*K)",
+    "Eng.CmpH.Fl_I.Pt:???????S???   = Pt2[Pa]@Pa",
+    "Eng.CmpH.Fl_I.Tt:???????S???   = Tt2[K]@K",
+    "Eng.CmpH.Fl_I.ht:???????S???   = ht2[J/kg]@J/kg",
+    
+    "Eng.CmpH.Nc:??????S???    = Nc_HPC[rpm]@rpm",
+    "Eng.CmpH.Wc:??????S???    = Wc_HPC[kg/sec]@kg/sec",
+    "Eng.CmpH.PR:??????S???    = PR_HPC",
+    "Eng.CmpH.eff:????S???     = Eta_Isen_HPC",
+    "Eng.CmpH.effPoly:????S??? = Eta_Poly_HPC",
+    "Eng.CmpH.pwr:??????S???   = HPCPower_2_Shaft[HP]@hp",
+    
+    "Eng.BrnPri.Fl_I.Aphy:???????S??? = Area3[cm2]@cm2",
+    "Eng.BrnPri.Fl_I.W:???????S???    = Wa3[kg/sec]@kg/sec",
+    "Eng.BrnPri.Wfuel:??????S???      = Wf3[kg/sec]@kg/sec",
+    "Eng.BrnPri.Fl_I.MN:???????S???   = M3",
+    "Eng.BrnPri.Fl_I.gamt:???????S??? = gamma3",
+    "Eng.BrnPri.Fl_I.Cpt:???????S???  = Cp3[J/K/kg]@J/(kg*K)",
+    "Eng.BrnPri.Fl_I.Pt:???????S???   = Pt3[Pa]@Pa",
+    "Eng.BrnPri.Fl_I.Tt:???????S???   = Tt3[K]@K",
+    "Eng.BrnPri.Fl_I.ht:???????S???   = ht3[J/kg]@J/kg",
 
-    "Eng.Amb.alt            = alt",
-    "Eng.Amb.MN             = M0",
-    "Eng.Amb.Ps             = Pamb",
-    "Eng.Amb.Ts             = Tamb",
-    "Eng.BrnPri.Fl_O.Tt/Eng.CmpH.Fl_I.Tt = Tt4_Tt2",
+    "Eng.TrbH.Fl_I.Aphy:???????S??? = Area4[cm2]@cm2",
+    "Eng.TrbH.Fl_I.W:???????S???    = W4[kg/sec]@kg/sec",
+    "Eng.TrbH.Fl_I.MN:???????S???   = M4",
+    "Eng.TrbH.Fl_I.gamt:???????S??? = gamma4",
+    "Eng.TrbH.Fl_I.Cpt:???????S???  = Cp4[J/K/kg]@J/(kg*K)",
+    "Eng.TrbH.Fl_I.Pt:???????S???   = Pt4[Pa]@Pa",
+    "Eng.TrbH.Fl_I.Tt:???????S???   = Tt4[K]@K",
+    "Eng.TrbH.Fl_I.ht:???????S???   = ht4[J/kg]@J/kg",
 
-    "Eng.InletStart.W       = Win",
-    "Eng.BrnPri.Wfuel       = Wfuel",
-    "Eng.Perf.Fg            = Fg",
-    "Eng.Perf.Fn            = Fn",
-    "Eng.Perf.Fram          = Fram",
-    "Eng.Perf.SFC           = SFC",
-
-    "Eng.CmpH.PR            = HPC_PR",
-    "Eng.CmpH.eff           = HPC_eff",
-    "Eng.CmpH.effPoly       = HPC_effpoly",
-    "Eng.TrbH.PR            = HPT_PR",
-    "Eng.TrbH.eff           = HPT_eff",
-    "Eng.TrbH.effPoly       = HPT_effPoly",
-    "Eng.CmpH.Nmech         = N2",
+    "Eng.TrbH.Np:??????S???      = Nc_HPT[rpm/sqrt(K)]@rpm/SQRT_K",
+    "Eng.TrbH.Wp:??????S???      = Wc_HPT[(kg*SQRT_K)/(sec*Pa)]@kg*SQRT_K/(sec*Pa)",
+    "Eng.TrbH.PR:??????S???      = PR_HPT",
+    "Eng.TrbH.eff:??????S???     = Eta_Isen_HPT",
+    "Eng.TrbH.effPoly:??????S??? = Eta_Poly_HPT",
+    "Eng.TrbH.pwr:??????S???     = HPTPower_2_Shaft[HP]@hp",
 	
-    // "Eng.Inlet.Fl_I.MN:??.???      = M0",
-    "Eng.Inlet.Fl_I.Pt      = Pt0",
-    "Eng.Inlet.Fl_I.Tt      = Tt0",
-    // "Eng.CmpH.Fl_I.Cpt = cp2",
-    "Eng.CmpH.Fl_I.gamt = gam2",
-    "Eng.CmpH.Fl_I.Rt = R2",
-    
-    "Eng.CmpH.Fl_I.MN:??.???       = M2",
-    "Eng.CmpH.Fl_I.Pt       = Pt2",
-    "Eng.CmpH.Fl_I.Tt       = Tt2",
-    
-    "Eng.BrnPri.Fl_I.MN:??.???     = M3",
-    "Eng.BrnPri.Fl_I.Pt     = Pt3",
-    "Eng.BrnPri.Fl_I.Tt     = Tt3",
-    
-    "Eng.TrbH.Fl_I.MN:??.???       = M4",
-    "Eng.TrbH.Fl_I.Pt       = Pt4",
-    "Eng.TrbH.Fl_I.Tt       = Tt4",
-    
-    "Eng.NozPri.Fl_I.MN:??.???     = M5",
-    "Eng.NozPri.Fl_I.Pt     = Pt5",
-    "Eng.NozPri.Fl_I.Tt     = Tt5",
+    "Eng.NozPri.Fl_I.Aphy:???????S??? = Area5[cm2]@cm2",
+    "Eng.NozPri.Fl_I.W:???????S???    = W5[kg/sec]@kg/sec",
+    "Eng.NozPri.Fl_I.MN:???????S???   = M5",
+    "Eng.NozPri.Fl_I.gamt:???????S??? = gamma5",
+    "Eng.NozPri.Fl_I.Cpt:???????S???  = Cp5[J/K/kg]@J/(kg*K)",
+    "Eng.NozPri.Fl_I.Pt:???????S???   = Pt5[Pa]@Pa",
+    "Eng.NozPri.Fl_I.Tt:???????S???   = Tt5[K]@K",
+    "Eng.NozPri.Fl_I.ht:???????S???   = ht5[J/kg]@J/kg",
 
-    "Eng.FePri.Fl_I.MN:??.???      = M9",
-    "Eng.FePri.Fl_I.Pt      = Pt9",
-    "Eng.FePri.Fl_I.Tt      = Tt9",
-    "Eng.FePri.Fl_I.V       = V9",
-    "Eng.NozPri.Fl_O.Aphy   = NozA@m2"
+    "Eng.NozPri.Fl_O.Aphy:???????S??? = Area6[cm2]@cm2",
+    "Eng.NozPri.Fl_O.W:???????S???    = W6[kg/sec]@kg/sec",
+    "Eng.NozPri.Fl_O.MN:???????S???   = M6",
+    "Eng.NozPri.Fl_O.gamt:???????S??? = gamma6",
+    "Eng.NozPri.Fl_O.Cpt:???????S???  = Cp6[J/K/kg]@J/(kg*K)",
+    "Eng.NozPri.Fl_O.Pt:???????S???   = Pt6[Pa]@Pa",
+    "Eng.NozPri.Fl_O.Tt:???????S???   = Tt6[K]@K",
+    "Eng.NozPri.Fl_O.ht:???????S???   = ht6[J/kg]@J/kg",
 
-
+    "Eng.NozPri.Fl_O.V:???????S???  = Vx6[m/sec]@m/sec",
+    "Eng.NozPri.Fl_O.Ps:???????S??? = Ps6[Pa]@Pa",
+    "Eng.NozPri.Fl_O.Ts:???????S??? = Ts6[K]@K"    
     }
     unitSystem = "SI";
-    defRealFormat = "?.???????E????";
-    defSNFormat   = "?.???????E????";
-    showErrors = FALSE;
-
+    showErrors = FALSE; // Dont print out failed case
 }
-RowOutput.update();
-// RowOutput.display();
-// quit();
+
+
+// Run the design case
+CASE = 0;
+cout << "Case: "<< CASE << endl;
+cout << solver.list("Independent",FALSE) <<endl;
+cout << solver.list("Dependent",FALSE) <<endl;
+run();
+RowOutput.update();//Stored Data
+
+// Print out map scaling factors
+cout << "Map scaling factors:" << endl;
+cout << "HPC effS " << Eng.CmpH.S_map.s_effDes << endl;
+cout << "HPC NcS " << Eng.CmpH.S_map.s_NcDes << endl;
+cout << "HPC PRS " << Eng.CmpH.S_map.s_PRdes << endl;
+cout << "HPC WcS " << Eng.CmpH.S_map.s_WcDes << endl;
+cout << endl;
+cout << "HPT effS " << Eng.TrbH.S_map.s_effDes << endl;
+cout << "HPT NcS " << Eng.TrbH.S_map.s_NpDes << endl;
+cout << "HPT PRS " << Eng.TrbH.S_map.s_PRdes << endl;
+cout << "HPT WcS " << Eng.TrbH.S_map.s_WpDes << endl;
+
+//Switch to design mode
 setOption("switchDes", "OFFDESIGN");
-
 autoSolverSetup();
+
+// Add additional variable pairs to the solver
 solver.addIndependent("ind_Wfuel");
-solver.addDependent("dep_T4qT2");
-real TR;
+solver.addDependent("dep_Fn");
 
-for (Eng.Amb.alt_in = 0; Eng.Amb.alt_in<=40000; Eng.Amb.alt_in +=5000){
+// Run the off design case
+cout << "Turn on off-design mode"<< endl;
+cout << solver.list("Independent",FALSE) <<endl;
+cout << solver.list("Dependent",FALSE) <<endl;
 
-    for(Eng.Amb.MN_in = 0.2; Eng.Amb.MN_in <= 0.8; Eng.Amb.MN_in +=0.1){
-        if(Eng.Amb.alt_in >= 10000 && Eng.Amb.MN_in <=0.39){continue;}
-        for(TR = 3.0; TR<=6.0; TR+=0.1){
-            dep_T4qT2.eq_rhs = "TR";
-            run();
-            cout<<"#";
-            if(!solver.converged){run();}
-            RowOutput.update();
-            CASE++;
-        }
-        cout<<"\t";
-    }
-    cout<<"\n";
+// Low Thrust sweep
+real ThrustCur;
+for (ThrustCur = ThrustDes; ThrustCur > ThrustLowLim; ThrustCur -= 2.5)
+{
+    CASE++;
+    cout << "Case: "<< CASE << endl;
+    dep_Fn.eq_rhs = "ThrustCur*getUnitsFactor(\"N\", \"lbf\")";
+    run();
+    if(!solver.converged){run();} //Run one more run to help converge
+    RowOutput.update();//Stored Data
+}
+// High Thrust sweep
+for (ThrustCur = ThrustDes; ThrustCur < ThrustHighLim; ThrustCur += 2.5)
+{
+    CASE++;
+    cout << "Case: "<< CASE << endl;
+    dep_Fn.eq_rhs = "ThrustCur*getUnitsFactor(\"N\", \"lbf\")";
+    run();
+    if(!solver.converged){run();} //Run one more run to help converge
+    RowOutput.update();//Stored Data
 }
 
-RowOutput.display();
-// printSolverConditions();
+quit();
 
-cout << endl << Eng.CmpH.Fl_O.totalCompAll()  << endl;
-icl.start();
