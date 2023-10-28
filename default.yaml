@@ -1,0 +1,38 @@
+- thrust_des: 25.0
+- temp_ratio_des: 3.0
+- thrust_low_lim: 20.0
+- thrust_high_lim: 55.0
+- ambient:
+    alt_in: 0.0
+    dTs_in: 0.0
+    MN_in: 0.0
+- inlet:
+    W_in: 0.29
+    PqP_in: 0.985
+- compressor:
+    map: HPCAnsysJun26.map
+    PRdes: 1.7
+    effDes: 0.70
+    FL_I:
+      MNdes: 0.45
+- fuel_start:
+    LHV_in: 21564
+    Wfuel: 0.01
+- burner:
+    dPqP_dmd: 0.04
+    effBase: 0.98
+    FL_I:
+      MNdes: 0.2
+- turbine:
+    map: hptCFM56.map
+    PRbase: 2.5
+    effDes: 0.65
+    FL_I:
+      MNdes: 0.4
+- nozzle:
+    dPqP: 0.02
+    FL_I:
+      MNdes: 0.2
+- shaft:
+    Nmech: 60000
+    HPX: 1

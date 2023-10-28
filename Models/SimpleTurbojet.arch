@@ -2,6 +2,8 @@
 AUTHOR = "Prashanth";
 MODELNAME = "SimpleTurbojet";
 
+#include "arch.h"
+
 // Set Thermodynamic Package
 #ifndef THERMO
 	#define THERMO GasTbl
@@ -32,58 +34,58 @@ Assembly Assembly Eng
     // Air Reservoir
     Element Ambient Amb {
         switchMode = "ALDTMN";
-        alt_in     = 0.0;
-        dTs_in     = 0.0;
-        MN_in      = 0.0;
+        alt_in     = $PARAM_AMBIENT_ALT_IN;
+        dTs_in     = $PARAM_AMBIENT_DTS_IN;
+        MN_in      = $PARAM_AMBIENT_MN_IN;
     }
 
     // Free Stream Definition
     Element InletStart InletStart{
         AmbientName = "Amb";
-        W_in        = 0.29 "kg/sec";
+        W_in        = $PARAM_INLET_W_IN "kg/sec";
     }
 
     // Inlet
     Element Inlet Inlet {
-        PqP_in     = 0.985;
+        PqP_in     = $PARAM_INLET_PQP_IN;
     }
 
     // Compressor
     Element Compressor CmpH {
-        #include "HPCAnsysJun26.map";
-        PRdes       = 1.7;
-        effDes      = 0.70;
-        Fl_I.MNdes  = 0.45;
+        #include "$PARAM_COMPRESSOR_MAP";
+        PRdes       = $PARAM_COMPRESSOR_PRDES;
+        effDes      = $PARAM_COMPRESSOR_EFFDES;
+        Fl_I.MNdes  = $PARAM_COMPRESSOR_FL_I_MNDES;
     }
 
     // Fuel Injector
     Element FuelStart FusEng {
-        LHV_in = 21564 "Btu/lbm"; //1MJ/kg = 429.923 BTU/lbm
-        Wfuel  = 1E-02 "kg/sec";
+        LHV_in = $PARAM_FUEL_START_LHV_IN "Btu/lbm"; //1MJ/kg = 429.923 BTU/lbm
+        Wfuel  = $PARAM_FUEL_START_WFUEL "kg/sec";
     }
 
     // Combustor
     Element Burner BrnPri {
         setOption("switchBurn", "WFUEL");
-        dPqP_dmd   = 0.04;
-        effBase    = 0.98;
-        Fl_I.MNdes = 0.2;
+        dPqP_dmd   = $PARAM_BURNER_DPQP_DMD;
+        effBase    = $PARAM_BURNER_EFFBASE;
+        Fl_I.MNdes = $PARAM_BURNER_FL_I_MNDES;
     }
 
     // Turbine
     Element Turbine TrbH {
-        #include "hptCFM56.map";
-        PRbase      = 2.5;
-        effDes      = 0.65;
-        Fl_I.MNdes  = 0.4;
+        #include "$PARAM_TURBINE_MAP";
+        PRbase      = $PARAM_TURBINE_PRBASE;
+        effDes      = $PARAM_TURBINE_EFFDES;
+        Fl_I.MNdes  = $PARAM_TURBINE_FL_I_MNDES;
     }
 
     // Nozzle
     Element Nozzle NozPri {
         PsExhName  = "Amb.Ps";
         switchType = "CONIC";
-        Fl_I.MNdes = 0.4;
-        dPqP       = 0.02;
+        Fl_I.MNdes = $PARAM_NOZZLE_FL_I_MNDES;
+        dPqP       = $PARAM_NOZZLE_DPQP;
         if (THERMPACKAGE == "CEA" ) {
             switchFrozen = "EQUIL";
         }
@@ -96,8 +98,8 @@ Assembly Assembly Eng
     // Shaft
     Element Shaft ShH {
         ShaftInputPort MeCmpH, MeTrbH;
-        Nmech = 60000;
-        HPX   = 1 "hp";
+        Nmech = $PARAM_SHAFT_NMECH;
+        HPX   = $PARAM_SHAFT_HPX "hp";
     }
 
     // Performance Evalution
@@ -130,3 +132,4 @@ Assembly Assembly Eng
     }
 }
 
+input_data.close();
