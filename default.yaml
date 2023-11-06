@@ -1,5 +1,5 @@
 - thrust_des: 25.0
-- temp_ratio_des: 3.0
+- temp_ratio_des: 3
 - thrust_low_lim: 20.0
 - thrust_high_lim: 55.0
 - ambient:
@@ -12,7 +12,7 @@
 - compressor:
     map: HPCAnsysJun26.map
     PRdes: 1.7
-    effDes: 0.70
+    effDes: 0.73
     FL_I:
       MNdes: 0.45
 - fuel_start:
@@ -35,4 +35,4 @@
       MNdes: 0.2
 - shaft:
     Nmech: 60000
-    HPX: 1
+    HPX: 0.5

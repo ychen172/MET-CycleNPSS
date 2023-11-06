@@ -4,7 +4,7 @@
 import yaml
 import sys
 
-# These arrays match what keys go into each file, and *also define the order*
+# These arrays match what keys go into each file
 arch_keys = [
     "ambient.alt_in",
     "ambient.dTs_in",
@@ -45,7 +45,7 @@ def create_defs(keys):
 arch_defs = create_defs(arch_keys)
 run_defs = create_defs(run_keys)
 
-def main():
+def main(overrides = {}):
     file = "default.yaml"
     if len(sys.argv) > 1:
         file = sys.argv[1]
@@ -57,6 +57,9 @@ def main():
     for data_object_elem in data_object:
         parse_data_object(data_object_elem, dictionary)
     
+    for key in overrides:
+        dictionary[key] = overrides[key]
+
     create_file("arch.h", arch_keys, arch_defs, dictionary)
     create_file("run.h", run_keys, run_defs, dictionary)
 

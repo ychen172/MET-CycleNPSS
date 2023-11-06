@@ -49,8 +49,8 @@ Dependent dep_effPolyCmpH{
 }
 
 // Use polytropic efficiencies for compressor/turbine scaling?
-real desEffPolyTrbH = FALSE;
-real desEffPolyCmpH = FALSE;
+real desEffPolyTrbH = TRUE;
+real desEffPolyCmpH = TRUE;
 
 // Add additional variable pairs to the solver
 solver.addIndependent("ind_Wfuel");
